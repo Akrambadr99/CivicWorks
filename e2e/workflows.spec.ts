@@ -19,3 +19,6 @@ test('Asset network evidence 2',async({page})=>{await page.goto('/assets/ROAD-14
 
 
 test('Conflict review restores and recovers domain state',async({page})=>{await page.goto('/assets/ROAD-142/program/2026-Q3/conflicts?zone=NORTH&focus=WO-771');await expect(page.getByRole('heading',{name:"Infrastructure conflict review",exact:true})).toBeVisible();await page.getByLabel('Authority').selectOption("emergency authority");await page.getByRole('button',{name:'Run domain bulk action'}).click();await expect(page.getByRole('status')).toContainText('1 succeeded; 1 require recovery');await expect(page.getByRole('button',{name:'Retry failed records'})).toBeVisible()});
+
+
+test('Budget scenarios restores a feasible decision',async({page})=>{await page.goto('/programs/NORTH-ROADS/budget/2027-2029?inflation=8');await expect(page.getByRole('heading',{name:"Multi-year maintenance budget scenario",exact:true})).toBeVisible();await expect(page.getByRole('region',{name:'Scenario result'})).toContainText(/Feasible|Blocked/);await expect(page.getByText("phase timing",{exact:false}).first()).toBeVisible()});
