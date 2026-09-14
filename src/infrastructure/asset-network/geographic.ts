@@ -1,0 +1,2 @@
+export interface ScheduledItem{id:string;resource:string;start:number;end:number}
+export function nearbyConflicts(items:readonly ScheduledItem[]){for(const item of items)if(item.start>=item.end)throw new Error('Invalid Geographic work zones interval.');return items.flatMap((left,index)=>items.slice(index+1).filter(right=>left.resource===right.resource&&left.start<right.end&&right.start<left.end).map(right=>[left.id,right.id] as const))}
