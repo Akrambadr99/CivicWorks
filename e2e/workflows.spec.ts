@@ -16,3 +16,6 @@ test('retains keyboard-visible product navigation',async({page})=>{await page.go
 test('Asset network deep workflow',async({page})=>{await page.goto('/assets/ROAD-142/network');await expect(page.getByRole('heading',{name:'Infrastructure asset and dependency network',exact:true})).toBeVisible();await expect(page.getByText('ROAD-142',{exact:false}).first()).toBeVisible()});
 test('Asset network evidence 1',async({page})=>{await page.goto('/assets/ROAD-142/network');await expect(page.getByText('District North',{exact:false}).first()).toBeVisible()});
 test('Asset network evidence 2',async({page})=>{await page.goto('/assets/ROAD-142/network');await expect(page.getByText('Water main dependency',{exact:false}).first()).toBeVisible()});
+
+
+test('Conflict review restores and recovers domain state',async({page})=>{await page.goto('/assets/ROAD-142/program/2026-Q3/conflicts?zone=NORTH&focus=WO-771');await expect(page.getByRole('heading',{name:"Infrastructure conflict review",exact:true})).toBeVisible();await page.getByLabel('Authority').selectOption("emergency authority");await page.getByRole('button',{name:'Run domain bulk action'}).click();await expect(page.getByRole('status')).toContainText('1 succeeded; 1 require recovery');await expect(page.getByRole('button',{name:'Retry failed records'})).toBeVisible()});
