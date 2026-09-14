@@ -1,0 +1,15 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+import{expect,test}from'@playwright/test';
+test.beforeEach(async({page})=>{await page.addInitScript(()=>localStorage.clear())});
+test('opens the command center',async({page})=>{await page.goto('/');await expect(page.getByRole('heading',{name:"CivicWorks command center"})).toBeVisible()});
+test('navigates to the connected operations workspace',async({page})=>{await page.goto('/');await page.getByRole('link',{name:'Operations'}).click();await expect(page.getByText(/LIVE WORKSPACE/)).toBeVisible()});
+test('renders derived analytics',async({page})=>{await page.goto('/analytics');await expect(page.getByRole('heading',{name:'Operational analytics'})).toBeVisible()});
+test("Public work order capacity route is operational",async({page})=>{await page.goto('/work-order');await expect(page.getByRole('heading',{name:"Public work order capacity"})).toBeVisible();await expect(page.getByText(/revision 1/).first()).toBeVisible()})
+test("Road closure windows route is operational",async({page})=>{await page.goto('/road-closure');await expect(page.getByRole('heading',{name:"Road closure windows"})).toBeVisible();await expect(page.getByText(/revision 1/).first()).toBeVisible()})
+test("Underground utility conflicts route is operational",async({page})=>{await page.goto('/utility-conflict');await expect(page.getByRole('heading',{name:"Underground utility conflicts"})).toBeVisible();await expect(page.getByText(/revision 1/).first()).toBeVisible()})
+test("Permit inspection route is operational",async({page})=>{await page.goto('/permit-inspection');await expect(page.getByRole('heading',{name:"Permit inspection"})).toBeVisible();await expect(page.getByText(/revision 1/).first()).toBeVisible()})
+test("Resident impact limits route is operational",async({page})=>{await page.goto('/resident-impact');await expect(page.getByRole('heading',{name:"Resident impact limits"})).toBeVisible();await expect(page.getByText(/revision 1/).first()).toBeVisible()})
+test("Materials reserve route is operational",async({page})=>{await page.goto('/materials-stock');await expect(page.getByRole('heading',{name:"Materials reserve"})).toBeVisible();await expect(page.getByText(/revision 1/).first()).toBeVisible()})
+test("Contractor milestone sequence route is operational",async({page})=>{await page.goto('/contractor-milestone');await expect(page.getByRole('heading',{name:"Contractor milestone sequence"})).toBeVisible();await expect(page.getByText(/revision 1/).first()).toBeVisible()})
+test("Asset condition freshness route is operational",async({page})=>{await page.goto('/asset-condition');await expect(page.getByRole('heading',{name:"Asset condition freshness"})).toBeVisible();await expect(page.getByText(/revision 1/).first()).toBeVisible()})
+test('retains keyboard-visible product navigation',async({page})=>{await page.goto('/');await page.keyboard.press('Tab');await expect(page.locator(':focus')).toBeVisible()});
