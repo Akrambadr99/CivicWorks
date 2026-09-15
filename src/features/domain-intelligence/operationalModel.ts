@@ -1,0 +1,5 @@
+export interface OperationalNode{id:string;label:string;capacity:number;demand:number;dependsOn:string[];effectiveFrom:string;effectiveTo:string;version:number}
+export const operationalNodes:OperationalNode[]=[{"id":"CW-710","label":"Oak Street utilities","capacity":10,"demand":8,"dependsOn":[],"effectiveFrom":"2026-09-01","effectiveTo":"2026-12-31","version":2},{"id":"CW-716","label":"River culvert","capacity":9,"demand":10,"dependsOn":["CW-710"],"effectiveFrom":"2026-09-01","effectiveTo":"2026-09-20","version":3},{"id":"CW-722","label":"School-zone permit","capacity":6,"demand":11,"dependsOn":["CW-716"],"effectiveFrom":"2026-09-18","effectiveTo":"2026-12-31","version":4},{"id":"CW-729","label":"Library access","capacity":8,"demand":4,"dependsOn":["CW-710"],"effectiveFrom":"2026-09-01","effectiveTo":"2026-12-31","version":5}];
+export const scenarioModes=["Safety priority","Balanced program","Funding deadline"] as const;
+export const metricLabels=["Funded scope","Permit readiness","District exposure"] as const;
+export const domainCoefficient=3.7;export const secondaryWeight=12;export const riskWeight=9;
