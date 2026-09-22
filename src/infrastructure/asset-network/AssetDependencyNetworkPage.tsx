@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { assets, downstreamOf, impactScore, interventionFindings } from './assetNetwork'
-import type { Asset } from './assetNetwork'
+import { downstreamOf, impactScore, interventionFindings } from './assetNetwork'
+import { changePermit, readIntervention, saveIntervention } from './interventionLedger'
 export function AssetDependencyNetworkPage() {
   const { assetId } = useParams()
-  const [network, setNetwork] = useState<readonly Asset[]>(assets)
+  const [ledger, setLedger] = useState(() => readIntervention(window.localStorage))
+  const network = ledger.network
   const [selectedId, setSelectedId] = useState(assetId ?? 'ROAD-142')
   const [asOf, setAsOf] = useState('2026-09-14')
   const [notice, setNotice] = useState('')
@@ -12,8 +13,12 @@ export function AssetDependencyNetworkPage() {
   const findings = interventionFindings(selectedId, network, asOf)
   const downstream = downstreamOf(selectedId, network)
   function approvePermit() {
-    setNetwork(current => current.map(item => item.id === selectedId ? { ...item, permit: 'approved' } : item))
+    setLedger(saveIntervention(window.localStorage, changePermit(ledger, selectedId, 'approved')))
     setNotice(`${selectedId} permit approval recorded; downstream findings recalculated.`)
+  }
+  function revokePermit() {
+    try { setLedger(saveIntervention(window.localStorage, changePermit(ledger, selectedId, 'pending'))); setNotice('Permit approval revoked.') }
+    catch (error) { setNotice(error instanceof Error ? error.message : 'Revocation failed.') }
   }
   return <div className="suite-page">
     <header className="suite-title"><div><small>ASSETS / SERVICE CONTINUITY</small>
@@ -34,10 +39,12 @@ export function AssetDependencyNetworkPage() {
           <p>Direct dependencies: {selected.dependsOn.join(', ') || 'none'}</p>
           <p>Downstream assets: {downstream.map(item => item.id).join(', ') || 'none'}</p>
           <p>Service impact score: {impactScore(selected.id, network)}</p>
+          <p>Intervention revision {ledger.revision} · Funding {ledger.fundingAdopted ? 'adopted' : 'pending'}</p>
           <label>Effective date <input type="date" value={asOf} onChange={event => { setAsOf(event.target.value); }} /></label>
           <h3>Intervention findings</h3>
           {findings.length ? <ul>{findings.map(item => <li key={item}>{item}</li>)}</ul> : <p>Intervention prerequisites pass.</p>}
           {selected.permit === 'pending' && <button onClick={approvePermit}>Record permit approval</button>}
+          {selected.id === 'ROAD-142' && selected.permit === 'approved' && <button onClick={revokePermit}>Revoke permit approval</button>}
           <p role="status">{notice}</p>
         </>}
       </section>
