@@ -10,11 +10,24 @@ export interface InterventionLedger {
   fundingInspectionRevision: number | null
   inspectionOwner: string
   fundingApprover: string | null
+  fundingReviews?: readonly FundingReview[] | undefined
   revision: number
   history: readonly { revision: number; action: string; assetId: string; actor?: string }[]
 }
+export interface FundingReview {
+  id: string
+  assetId: string
+  inspectionRevision: number
+  permitRevision: number
+  requestedBy: string
+  assignee: string
+  status: 'open' | 'stale' | 'completed' | 'superseded'
+  supersedesId?: string
+  decision?: 'adopted' | 'changes_requested'
+  reason?: string
+}
 const key = 'civicworks:road-142:intervention:v1'
-export const initialIntervention: InterventionLedger = { network: assets, fundingAdopted: false, inspectionValid: true, inspectionRevision: 0, fundingInspectionRevision: null, inspectionOwner: 'road inspector', fundingApprover: null, revision: 0, history: [] }
+export const initialIntervention: InterventionLedger = { network: assets, fundingAdopted: false, inspectionValid: true, inspectionRevision: 0, fundingInspectionRevision: null, inspectionOwner: 'road inspector', fundingApprover: null, fundingReviews: [], revision: 0, history: [] }
 export function readIntervention(storage: StoragePort): InterventionLedger {
   const raw = storage.getItem(key)
   if (!raw) return initialIntervention
@@ -27,7 +40,23 @@ export function readIntervention(storage: StoragePort): InterventionLedger {
     Partial<Pick<InterventionLedger, 'inspectionValid' | 'inspectionRevision' | 'fundingInspectionRevision' | 'inspectionOwner' | 'fundingApprover'>>
   return { ...record, inspectionValid: record.inspectionValid ?? true,
     inspectionRevision: record.inspectionRevision ?? 0,
-    fundingInspectionRevision: record.fundingInspectionRevision ?? (record.fundingAdopted ? 0 : null), inspectionOwner: record.inspectionOwner ?? 'road inspector', fundingApprover: record.fundingApprover ?? null }
+    fundingInspectionRevision: record.fundingInspectionRevision ?? (record.fundingAdopted ? 0 : null), inspectionOwner: record.inspectionOwner ?? 'road inspector', fundingApprover: record.fundingApprover ?? null,
+    fundingReviews: record.fundingReviews ?? [] }
+}
+export function financeInbox(state: InterventionLedger, actor: string): FundingReview[] {
+  return (state.fundingReviews ?? []).filter(item => item.assignee === actor && item.status === 'open')
+}
+export function requestFundingReview(state: InterventionLedger, actor: string, assignee = 'finance authority'): InterventionLedger {
+  if (actor !== state.inspectionOwner || assignee !== 'finance authority' || actor === assignee) throw new Error('Inspector must hand off to independent finance.')
+  if (fundingBlockers(state).length || state.fundingAdopted) throw new Error('Permit and valid inspection are required before finance review.')
+  if (state.fundingReviews?.some(item => item.status === 'open')) throw new Error('Funding review already requested.')
+  const revision = state.revision + 1
+  const previous = [...(state.fundingReviews ?? [])].reverse().find(item => item.status === 'stale')
+  const request: FundingReview = { id: `FUND-ROAD-142-${String(revision)}`, assetId: 'ROAD-142', inspectionRevision: state.inspectionRevision,
+    permitRevision: revision, requestedBy: actor, assignee, status: 'open', ...(previous ? { supersedesId: previous.id } : {}) }
+  return { ...state, revision, fundingReviews: [...(state.fundingReviews ?? []).map(item => item.id === previous?.id ?
+    { ...item, status: 'superseded' as const } : item), request],
+    history: [...state.history, { revision, action: 'funding-review-requested', assetId: 'ROAD-142', actor }] }
 }
 export function fundingReviewPolicy(state: InterventionLedger, actor: string): { allowed: boolean; blockers: string[]; queue: 'inspection' | 'finance-review' | 'funded' } {
   const blockers = fundingBlockers(state).filter(item => !item.includes('stale after'))
@@ -47,26 +76,35 @@ export function changePermit(state: InterventionLedger, assetId: string, permit:
   if (permit !== 'approved' && state.fundingAdopted) throw new Error('Adopted funding depends on this permit approval.')
   const revision = state.revision + 1
   return { ...state, revision, network: state.network.map(item => item.id === assetId ? { ...item, permit } : item),
+    fundingReviews: assetId === 'ROAD-142' ? state.fundingReviews?.map(item => item.status === 'open' ?
+      { ...item, status: 'stale' as const } : item) : state.fundingReviews,
     history: [...state.history, { revision, action: 'permit-' + permit, assetId }] }
 }
 export function adoptFunding(state: InterventionLedger, actor: string): InterventionLedger {
   const policy = fundingReviewPolicy(state, actor)
   if (!policy.allowed) throw new Error(policy.blockers[0])
   if (state.fundingAdopted) throw new Error('Funding is already adopted.')
+  if (state.fundingReviews?.length && !financeInbox(state, actor).some(item =>
+    item.inspectionRevision === state.inspectionRevision && item.permitRevision === state.revision))
+    throw new Error('A current ROAD-142 finance request must be assigned to this approver.')
   const revision = state.revision + 1
   return { ...state, revision, fundingAdopted: true, fundingInspectionRevision: state.inspectionRevision, fundingApprover: actor,
+    fundingReviews: state.fundingReviews?.map(item => item.status === 'open' ?
+      { ...item, status: 'completed' as const, decision: 'adopted' as const } : item),
     history: [...state.history, { revision, action: 'funding-adopted', assetId: 'ROAD-142', actor }] }
 }
 export function invalidateInspection(state: InterventionLedger): InterventionLedger {
   if (!state.inspectionValid) throw new Error('Inspection is already invalid.')
   const revision = state.revision + 1
   return { ...state, revision, inspectionRevision: state.inspectionRevision + 1, inspectionValid: false,
+    fundingReviews: state.fundingReviews?.map(item => item.status === 'open' ? { ...item, status: 'stale' as const } : item),
     history: [...state.history, { revision, action: 'inspection-invalidated', assetId: 'ROAD-142' }] }
 }
 export function reinspect(state: InterventionLedger): InterventionLedger {
   if (state.inspectionValid) throw new Error('No invalid inspection requires replacement.')
   const revision = state.revision + 1
   return { ...state, revision, inspectionRevision: state.inspectionRevision + 1, inspectionValid: true,
+    fundingReviews: state.fundingReviews?.map(item => item.status === 'open' ? { ...item, status: 'stale' as const } : item),
     history: [...state.history, { revision, action: 'inspection-replaced', assetId: 'ROAD-142' }] }
 }
 export function revalidateFunding(state: InterventionLedger, actor: string): InterventionLedger {
