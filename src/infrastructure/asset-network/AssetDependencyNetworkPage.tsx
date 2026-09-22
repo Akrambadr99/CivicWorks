@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { downstreamOf, impactScore, interventionFindings } from './assetNetwork'
-import { changePermit, readIntervention, saveIntervention } from './interventionLedger'
+import { changePermit, fundingBlockers, invalidateInspection, readIntervention, reinspect, saveIntervention } from './interventionLedger'
 export function AssetDependencyNetworkPage() {
   const { assetId } = useParams()
   const [ledger, setLedger] = useState(() => readIntervention(window.localStorage))
@@ -19,6 +19,10 @@ export function AssetDependencyNetworkPage() {
   function revokePermit() {
     try { setLedger(saveIntervention(window.localStorage, changePermit(ledger, selectedId, 'pending'))); setNotice('Permit approval revoked.') }
     catch (error) { setNotice(error instanceof Error ? error.message : 'Revocation failed.') }
+  }
+  function reviewInspection() {
+    try { setLedger(saveIntervention(window.localStorage, ledger.inspectionValid ? invalidateInspection(ledger) : reinspect(ledger))); setNotice('Inspection revision recorded; funding eligibility recalculated.') }
+    catch (error) { setNotice(error instanceof Error ? error.message : 'Inspection review failed.') }
   }
   return <div className="suite-page">
     <header className="suite-title"><div><small>ASSETS / SERVICE CONTINUITY</small>
@@ -40,11 +44,14 @@ export function AssetDependencyNetworkPage() {
           <p>Downstream assets: {downstream.map(item => item.id).join(', ') || 'none'}</p>
           <p>Service impact score: {impactScore(selected.id, network)}</p>
           <p>Intervention revision {ledger.revision} · Funding {ledger.fundingAdopted ? 'adopted' : 'pending'}</p>
+          {selected.id === 'ROAD-142' && <p>Inspection revision {ledger.inspectionRevision} · {ledger.inspectionValid ? 'valid' : 'invalid'}</p>}
+          {selected.id === 'ROAD-142' && fundingBlockers(ledger).map(item => <p role="alert" key={item}>{item}</p>)}
           <label>Effective date <input type="date" value={asOf} onChange={event => { setAsOf(event.target.value); }} /></label>
           <h3>Intervention findings</h3>
           {findings.length ? <ul>{findings.map(item => <li key={item}>{item}</li>)}</ul> : <p>Intervention prerequisites pass.</p>}
           {selected.permit === 'pending' && <button onClick={approvePermit}>Record permit approval</button>}
           {selected.id === 'ROAD-142' && selected.permit === 'approved' && <button onClick={revokePermit}>Revoke permit approval</button>}
+          {selected.id === 'ROAD-142' && <button onClick={reviewInspection}>{ledger.inspectionValid ? 'Invalidate inspection evidence' : 'Record replacement inspection'}</button>}
           <p role="status">{notice}</p>
         </>}
       </section>

@@ -1,0 +1,20 @@
+import { expect, test } from '@playwright/test'
+
+test('inspection invalidation stales funding and replacement evidence permits revalidation', async ({ page }) => {
+  await page.goto('/assets/ROAD-142/network')
+  await page.getByRole('button', { name: 'Record permit approval' }).click()
+  await page.goto('/programs/NORTH-ROADS/budget/2027-2029?inflation=0')
+  await page.getByLabel('Decision authority').selectOption('finance authority')
+  await page.getByRole('button', { name: 'Adopt funding scenario' }).click()
+  await page.goto('/assets/ROAD-142/network')
+  await page.getByRole('button', { name: 'Invalidate inspection evidence' }).click()
+  await page.goto('/programs/NORTH-ROADS/budget/2027-2029?inflation=0')
+  await expect(page.getByText('Adopted funding is stale', { exact: false })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Revalidate funding' })).toBeDisabled()
+  await page.goto('/assets/ROAD-142/network')
+  await page.getByRole('button', { name: 'Record replacement inspection' }).click()
+  await page.goto('/programs/NORTH-ROADS/budget/2027-2029?inflation=0')
+  await page.getByLabel('Decision authority').selectOption('finance authority')
+  await page.getByRole('button', { name: 'Revalidate funding' }).click()
+  await expect(page.getByText('Adopted funding is stale', { exact: false })).toHaveCount(0)
+})
