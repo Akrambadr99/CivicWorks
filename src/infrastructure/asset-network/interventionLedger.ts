@@ -21,6 +21,7 @@ export interface FundingReview {
   permitRevision: number
   requestedBy: string
   assignee: string
+  assigneeId?: string | null
   status: 'open' | 'stale' | 'completed' | 'superseded'
   supersedesId?: string
   decision?: 'adopted' | 'changes_requested'
@@ -53,7 +54,7 @@ export function requestFundingReview(state: InterventionLedger, actor: string, a
   const revision = state.revision + 1
   const previous = [...(state.fundingReviews ?? [])].reverse().find(item => item.status === 'stale')
   const request: FundingReview = { id: `FUND-ROAD-142-${String(revision)}`, assetId: 'ROAD-142', inspectionRevision: state.inspectionRevision,
-    permitRevision: revision, requestedBy: actor, assignee, status: 'open', ...(previous ? { supersedesId: previous.id } : {}) }
+    permitRevision: revision, requestedBy: actor, assignee, assigneeId: null, status: 'open', ...(previous ? { supersedesId: previous.id } : {}) }
   return { ...state, revision, fundingReviews: [...(state.fundingReviews ?? []).map(item => item.id === previous?.id ?
     { ...item, status: 'superseded' as const } : item), request],
     history: [...state.history, { revision, action: 'funding-review-requested', assetId: 'ROAD-142', actor }] }
@@ -80,13 +81,15 @@ export function changePermit(state: InterventionLedger, assetId: string, permit:
       { ...item, status: 'stale' as const } : item) : state.fundingReviews,
     history: [...state.history, { revision, action: 'permit-' + permit, assetId }] }
 }
-export function adoptFunding(state: InterventionLedger, actor: string): InterventionLedger {
+export function adoptFunding(state: InterventionLedger, actor: string, approverId?: string): InterventionLedger {
   const policy = fundingReviewPolicy(state, actor)
   if (!policy.allowed) throw new Error(policy.blockers[0])
   if (state.fundingAdopted) throw new Error('Funding is already adopted.')
   if (state.fundingReviews?.length && !financeInbox(state, actor).some(item =>
     item.inspectionRevision === state.inspectionRevision && item.permitRevision === state.revision))
     throw new Error('A current ROAD-142 finance request must be assigned to this approver.')
+  if (state.fundingReviews?.some(item => item.status === 'open' && item.assigneeId &&
+    item.assigneeId !== approverId)) throw new Error('Funding review belongs to another named finance approver.')
   const revision = state.revision + 1
   return { ...state, revision, fundingAdopted: true, fundingInspectionRevision: state.inspectionRevision, fundingApprover: actor,
     fundingReviews: state.fundingReviews?.map(item => item.status === 'open' ?
