@@ -1,16 +1,20 @@
+import { useCollectionExplorer } from '../../workspace/useCollectionExplorer'
+import { ExplorerControls, ExplorerPagination, ExplorerSelection } from '../../workspace/CollectionExplorerControls'
+import { withCollectionView } from '../../workspace/collectionExplorer'
+import { interventionTriage } from './collectionTriage'
 import { recordDetailPath, recordDecisionPath } from './recordLinks'
 import { Link } from 'react-router-dom'
 import { saveCurrentCollection } from '../../workspace/recordStorage'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { financeApprovers } from './financeWorkload'
-import { archiveIntervention, claimInterventionFunding, interventionInbox, interventionRows, readInterventionCollection,
+import { archiveIntervention, claimInterventionFunding, interventionInbox, readInterventionCollection,
   requestFundingReviews, reviseInspection, saveInterventionCollection } from './interventionCollection'
 
 export function InterventionCollectionPage() {
   const [collection, setCollection] = useState(() => readInterventionCollection(window.localStorage))
   const [params, setParams] = useSearchParams()
-  const [query, setQuery] = useState(''); const [filter, setFilter] = useState('active')
+  const explorer = useCollectionExplorer(collection.interventions, interventionTriage)
   const [approver, setApprover] = useState('finance-amira'); const [checked, setChecked] = useState<string[]>([])
   const [notice, setNotice] = useState('')
   const selectedId = params.get('intervention') ?? 'ROAD-143'; const selected = collection.interventions.find(item => item.id === selectedId)
@@ -27,6 +31,7 @@ export function InterventionCollectionPage() {
       <article><small>Inspection sources</small><strong>{collection.inspections.length}</strong></article>
     </section>
     <section className="suite-card" aria-label="Finance queue"><h2>Finance and permit queue</h2>
+      <p>All active finance and permit work. Collection filters below do not limit this queue.</p>
       {interventionInbox(collection).length ? <ul>{interventionInbox(collection).map(item => <li key={item.interventionId + item.id}>
         <button onClick={() => { choose(item.interventionId) }}>{item.interventionId}</button> · {item.district} · {item.kind} ·
         {item.assigneeId ?? 'team queue'} · {item.status}</li>)}</ul> : <p>No finance work.</p>}
@@ -34,16 +39,17 @@ export function InterventionCollectionPage() {
         {financeApprovers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
     </section>
     <section className="suite-card" aria-label="Intervention collection"><h2>Road interventions</h2>
-      <label>Search roads or district <input value={query} onChange={event => { setQuery(event.target.value) }} /></label>
-      <label>Show <select value={filter} onChange={event => { setFilter(event.target.value) }}><option value="active">Active</option>
-        <option value="archived">Archived</option><option value="all">All</option></select></label>
-      {interventionRows(collection, query, filter).length ? <ul>{interventionRows(collection, query, filter).map(record => <li key={record.id}>
+      <ExplorerControls noun="roads or district" view={explorer.view} onChange={explorer.setView} states={interventionTriage.states} onReset={explorer.reset} />
+      <ExplorerSelection selected={checked} visible={explorer.rows.map(record => record.id)} onChange={setChecked} />
+      {explorer.rows.length ? <ul>{explorer.rows.map(record => <li key={record.id}>
         <label><input type="checkbox" checked={checked.includes(record.id)} onChange={event => {
           setChecked(current => event.target.checked ? [...current, record.id] : current.filter(id => id !== record.id))
         }} /> Select {record.id}</label>
         <button aria-current={selectedId === record.id ? 'true' : undefined} onClick={() => { choose(record.id) }}>
           {record.id} · {record.district}</button> · ledger r{record.ledger.revision} · {record.inspectionSourceId}
-        {record.archived ? ' · archived' : ''}</li>)}</ul> : <p>No interventions match this view.</p>}
+        {record.archived ? ' · archived' : ''} · {interventionTriage.states.find(state => state.value === interventionTriage.state(record))?.label}</li>)}</ul> : <div className="collection-empty"><p>No interventions match this view. Adjust the filters or reset the view; your selected record is preserved.</p><button onClick={explorer.reset}>Reset empty view</button></div>}
+      <ExplorerPagination page={explorer.page} pageCount={explorer.pageCount} matchingCount={explorer.matchingCount} onPageChange={page => { explorer.setView({ page }) }} />
+      {selected && !explorer.rows.some(record => record.id === selected.id) && <p className="collection-context">Selected {selected.id} is outside the current page or filters. Its details remain open.</p>}
       <button disabled={!checked.length} onClick={() => { const result = requestFundingReviews(collection, checked)
         persist(result.collection, `${String(result.updated.length)} requested; ${String(result.skipped.length)} skipped; ${String(result.blocked.length)} blocked.`)
       }}>Request selected funding reviews</button>
@@ -64,7 +70,7 @@ export function InterventionCollectionPage() {
     </>}</section>
     <section className="suite-card" aria-label="Intervention audit"><h2>Collection audit</h2><ol>{collection.audit.toReversed().slice(0, 8).map((item, index) =>
       <li key={index}>{item.action} · {item.id} · {item.related.join(', ') || 'none'}</li>)}</ol></section>
-    <nav aria-label="Selected record workflows">{selected && !selected.archived && <><Link to={recordDetailPath(selected)}>Open record details</Link>{' · '}<Link to={recordDecisionPath(selected)}>Open decision workflow</Link></>} <button onClick={() => { try { setCollection(readInterventionCollection(window.localStorage)); setNotice('Workspace refreshed; selection preserved.') } catch (error) { setNotice(error instanceof Error ? error.message : 'Refresh failed.') } }}>Refresh workspace</button></nav>
+    <nav aria-label="Selected record workflows">{selected && !selected.archived && <><Link to={withCollectionView(recordDetailPath(selected), params)}>Open record details</Link>{' · '}<Link to={withCollectionView(recordDecisionPath(selected), params)}>Open decision workflow</Link></>} <button onClick={() => { try { setCollection(readInterventionCollection(window.localStorage)); setNotice('Workspace refreshed; selection preserved.') } catch (error) { setNotice(error instanceof Error ? error.message : 'Refresh failed.') } }}>Refresh workspace</button></nav>
     <p role="status">{notice}</p>
   </main>
 }
