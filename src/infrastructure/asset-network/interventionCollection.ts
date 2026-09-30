@@ -1,3 +1,5 @@
+import { readStored, writeStored } from '../../workspace/storageValidation'
+import { interventionCollectionRule } from './collectionValidation'
 import type { StoragePort } from '../../workspace/repository'
 import { changePermit, initialIntervention, invalidateInspection, readIntervention, reinspect, requestFundingReview } from './interventionLedger'
 import type { InterventionLedger } from './interventionLedger'
@@ -24,15 +26,11 @@ export function seedInterventionCollection(legacy: InterventionLedger = initialI
   ], audit: [] }
 }
 export function readInterventionCollection(storage: StoragePort): InterventionCollection {
-  const raw = storage.getItem(key)
-  if (!raw) return seedInterventionCollection(readIntervention(storage))
-  const value: unknown = JSON.parse(raw)
-  if (!value || typeof value !== 'object' || !('interventions' in value) || !Array.isArray(value.interventions) ||
-    !('inspections' in value) || !Array.isArray(value.inspections) || !('audit' in value) || !Array.isArray(value.audit))
-    throw new Error('Invalid intervention collection.')
-  return value as InterventionCollection
+  return readStored(storage, key, interventionCollectionRule, () => seedInterventionCollection(readIntervention(storage)), 'civicworks:road-142:intervention:v1')
 }
-export function saveInterventionCollection(storage: StoragePort, value: InterventionCollection): InterventionCollection { storage.setItem(key, JSON.stringify(value)); return value }
+export function saveInterventionCollection(storage: StoragePort, value: InterventionCollection): InterventionCollection {
+  return writeStored(storage, key, interventionCollectionRule, value)
+}
 export function interventionById(value: InterventionCollection, id: string): InterventionRecord {
   const record = value.interventions.find(item => item.id === id)
   if (!record) throw new Error(`Intervention ${id} was not found.`)

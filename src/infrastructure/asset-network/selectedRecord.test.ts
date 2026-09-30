@@ -83,7 +83,7 @@ describe('selected intervention persistence', () => {
     const storage = new MemoryStorage(), bound = openSelectedRecord(storage)
     const changed = edit(readIntervention(bound))
     storage.fail = true
-    expect(() => saveIntervention(bound, changed)).toThrow('Storage full')
+    expect(() => saveIntervention(bound, changed)).toThrow('Browser storage rejected the save')
     storage.fail = false
     saveIntervention(bound, changed)
     expect(readIntervention(openSelectedRecord(storage))).toEqual(changed)
