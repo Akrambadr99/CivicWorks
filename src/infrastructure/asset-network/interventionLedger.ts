@@ -1,4 +1,4 @@
-import type { StoragePort } from '../../workspace/repository'
+import type { StoragePort, StorageReader } from '../../platform/storage-port'
 import { assets } from './assetNetwork'
 import type { Asset } from './assetNetwork'
 
@@ -29,7 +29,7 @@ export interface FundingReview {
 }
 const key = 'civicworks:road-142:intervention:v1'
 export const initialIntervention: InterventionLedger = { network: assets, fundingAdopted: false, inspectionValid: true, inspectionRevision: 0, fundingInspectionRevision: null, inspectionOwner: 'road inspector', fundingApprover: null, fundingReviews: [], revision: 0, history: [] }
-export function readIntervention(storage: StoragePort): InterventionLedger {
+export function readIntervention(storage: StorageReader): InterventionLedger {
   const raw = storage.getItem(key)
   if (!raw) return initialIntervention
   const value: unknown = JSON.parse(raw)

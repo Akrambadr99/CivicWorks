@@ -1,6 +1,6 @@
 import { readStored, writeStored } from '../../workspace/storageValidation'
 import { interventionCollectionRule } from './collectionValidation'
-import type { StoragePort } from '../../workspace/repository'
+import type { StoragePort, StorageReader } from '../../platform/storage-port'
 import { changePermit, initialIntervention, invalidateInspection, readIntervention, reinspect, requestFundingReview } from './interventionLedger'
 import type { InterventionLedger } from './interventionLedger'
 import { claimFundingReview, financeWorkInbox } from './financeWorkload'
@@ -25,7 +25,7 @@ export function seedInterventionCollection(legacy: InterventionLedger = initialI
     { id: 'INS-S-2', revision: 1, valid: true, interventionIds: ['ROAD-310', 'ROAD-311'] },
   ], audit: [] }
 }
-export function readInterventionCollection(storage: StoragePort): InterventionCollection {
+export function readInterventionCollection(storage: StorageReader): InterventionCollection {
   return readStored(storage, key, interventionCollectionRule, () => seedInterventionCollection(readIntervention(storage)), 'civicworks:road-142:intervention:v1')
 }
 export function saveInterventionCollection(storage: StoragePort, value: InterventionCollection): InterventionCollection {

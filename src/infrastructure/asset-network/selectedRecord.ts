@@ -1,4 +1,4 @@
-import type { StoragePort } from '../../workspace/repository'
+import type { StoragePort } from '../../platform/storage-port'
 import { bindRecord } from '../../workspace/recordStorage'
 import { readInterventionCollection, saveInterventionCollection } from './interventionCollection'
 import { readIntervention } from './interventionLedger'
@@ -11,7 +11,7 @@ export function openSelectedRecord(storage: StoragePort, id = 'ROAD-142') {
     find: (collection, target) => collection.interventions.find(item => item.id === target),
     value: record => record.ledger, archived: record => record.archived,
     replace: (collection, target, raw) => {
-      const value = readIntervention({ getItem: () => raw, setItem: () => { throw new Error('Read only decoder.') } })
+      const value = readIntervention({ getItem: () => raw })
       return { ...collection, interventions: collection.interventions.map(item => item.id === target ? { ...item, ledger: value } : item),
         audit: [...collection.audit, { action: 'detail-updated', id: target, related: [] }] }
     },
